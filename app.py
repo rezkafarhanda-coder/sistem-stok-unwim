@@ -1,5 +1,16 @@
 import streamlit as st
 import pandas as pd
+import datetime
+import base64
+import io
+import re
+from pathlib import Path
+
+# Import khusus untuk styling file Word
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.oxml.shared import OxmlElement
+from docx.oxml.ns import qn
 
 # ==================================================
 # KONFIGURASI HALAMAN
@@ -15,503 +26,625 @@ st.set_page_config(
 # ==================================================
 st.markdown("""
 <style>
-
-.stApp{
-    background-color:#f4f6f9;
+.stApp{ background-color:#f4f6f9; }
+.custom-header {
+    background-color: #12715b; color: white; padding: 12px 25px; border-radius: 8px; margin-bottom: 25px; 
+    display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
+.header-left { display: flex; align-items: center; gap: 15px; }
+.header-logo { height: 55px; width: auto; }
+.header-title { display: flex; flex-direction: column; justify-content: center; }
+.title-main { font-size: 22px; font-weight: bold; letter-spacing: 0.5px; margin: 0; color: white !important; }
+.title-sub { font-size: 13px; font-weight: 400; letter-spacing: 0.5px; margin-top: 3px; color: rgba(255, 255, 255, 0.8) !important; }
+.header-right { display: flex; align-items: center; gap: 20px; font-size: 14px; font-weight: 500; }
+.header-item { display: flex; align-items: center; gap: 8px; }
+.icon-svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-/* HEADER */
-.custom-header{
-    background:linear-gradient(135deg,#118d80,#0f766e);
-    color:white;
-    padding:25px;
-    border-radius:18px;
-    margin-bottom:25px;
-    box-shadow:0 4px 15px rgba(0,0,0,0.15);
-}
+button[data-baseweb="tab"] p, button[data-baseweb="tab"] span { color: #111827 !important; font-weight: 600 !important; font-size: 16px !important; }
+button[data-baseweb="tab"][aria-selected="true"] p, button[data-baseweb="tab"][aria-selected="true"] span { font-weight: 800 !important; }
+div[data-baseweb="tab-highlight"] { background-color: #12715b !important; }
 
-.custom-header h1{
-    margin:0;
-}
+.card-ringkasan-baru { border-radius: 14px; padding: 18px 20px; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 16px; position: relative; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.card-ringkasan-baru::before { content: ""; position: absolute; width: 140px; height: 140px; bottom: -50px; left: -50px; border-radius: 45%; z-index: 0; pointer-events: none; }
+.card-ringkasan-baru::after { content: ""; position: absolute; width: 160px; height: 160px; bottom: -70px; left: -40px; border-radius: 40%; z-index: 0; pointer-events: none; opacity: 0.7; }
+.card-ringkasan-baru.hijau { background: linear-gradient(135deg, #f2faf7 0%, #e3f5ee 100%); }
+.card-ringkasan-baru.hijau::before { background: rgba(32, 201, 151, 0.18); transform: rotate(15deg); }
+.card-ringkasan-baru.hijau::after { background: rgba(18, 113, 91, 0.08); transform: rotate(45deg); }
+.card-ringkasan-baru.kuning { background: linear-gradient(135deg, #fff9ee 0%, #fff2d9 100%); }
+.card-ringkasan-baru.kuning::before { background: rgba(255, 176, 32, 0.16); transform: rotate(25deg); }
+.card-ringkasan-baru.kuning::after { background: rgba(255, 143, 0, 0.07); transform: rotate(55deg); }
 
-.custom-header h3{
-    margin-top:5px;
-    font-weight:400;
-}
+.circle-icon-baru, .content-kanan-baru { position: relative; z-index: 1; }
+.circle-icon-baru { width: 54px; height: 54px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; color: white; flex-shrink: 0; }
+.circle-icon-baru.hijau { background-color: #12715b; }
+.circle-icon-baru.kuning { background-color: #ffb020; }
+.content-kanan-baru { display: flex; flex-direction: column; }
+.title-card-baru { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin: 0; }
+.angka-card-baru { font-size: 36px; font-weight: bold; line-height: 1.1; margin: 3px 0; }
+.desc-card-baru { font-size: 12px; color: #4b5563; line-height: 1.4; margin: 0; }
 
-/* CARD RINGKASAN */
-.card-ringkasan{
-    background:white;
-    border-radius:18px;
-    padding:20px;
-    margin-bottom:18px;
-    box-shadow:0 4px 15px rgba(0,0,0,0.08);
-}
+div[data-baseweb="input"]{ border:1px solid #cbd5e1 !important; border-radius:8px !important; background:white !important; }
+div[data-baseweb="select"] > div{ border:1px solid #cbd5e1 !important; border-radius:8px !important; background:white !important; }
 
-.card-top{
-    display:flex;
-    align-items:center;
-    gap:15px;
-}
+.table-gudang { width: 100%; border-collapse: separate !important; border-spacing: 0 !important; background: white; border-radius: 12px !important; overflow: hidden; border: 1px solid #e5e7eb !important; }
+.table-gudang th { background: #12715b !important; color: white !important; padding: 14px 12px !important; text-align: center !important; font-weight: bold !important; font-size: 14px !important; border: 1px solid #106652 !important; }
+.table-gudang td { padding: 12px !important; text-align: center !important; vertical-align: middle !important; border: 1px solid #eef2f5 !important; color: #374151 !important; font-size: 14px !important; }
+.table-gudang tr:nth-child(even) { background: #ffffff; }
 
-.icon-circle{
-    width:70px;
-    height:70px;
-    border-radius:50%;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:35px;
-    color:white;
-}
+.status-badge-container { display: flex; justify-content: center; align-items: center; }
+.status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; min-width: 135px; }
+.status-badge.good { background-color: #eefaf6; color: #12715b; border: 1px solid #d1f2e5; }
+.status-badge.good .badge-dot { background-color: #22c55e; }
+.status-badge.low { background-color: #fff9ed; color: #ffb020; border: 1px solid #ffecc7; }
+.status-badge.low .badge-dot { background-color: #ffb020; }
+.status-badge.out { background-color: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+.status-badge.out .badge-dot { background-color: #ef4444; }
+.badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
-.hijau{
-    background:linear-gradient(135deg,#20c997,#118d80);
-}
+div.stButton > button{ border-radius:10px !important; font-weight:bold !important; }
+div.element-container:has(.marker-hijau) + div.element-container button{ background:#22c55e !important; color:white !important; border: none !important;}
+div.element-container:has(.marker-merah) + div.element-container button{ background:#ef4444 !important; color:white !important; border: none !important;}
+div.element-container:has(.marker-teal) + div.element-container { margin-top: 12px !important;  }
+div.element-container:has(.marker-teal) + div.element-container button { background: #12715b !important; color: white !important; border: none !important; border-radius: 8px !important; height: 40px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+div.element-container:has(.marker-teal) + div.element-container button:hover { background: #0f766e !important; color: white !important; }
 
-.kuning{
-    background:linear-gradient(135deg,#ffb020,#ff8f00);
-}
-
-.biru{
-    background:linear-gradient(135deg,#60a5fa,#2563eb);
-}
-
-.judul-card{
-    font-size:16px;
-    font-weight:bold;
-}
-
-.angka-card{
-    font-size:48px;
-    font-weight:bold;
-    line-height:1;
-}
-
-.keterangan{
-    margin-top:10px;
-    color:#6b7280;
-    font-size:14px;
-}
-
-/* INPUT */
-div[data-baseweb="input"]{
-    border:1px solid #cbd5e1 !important;
-    border-radius:8px !important;
-    background:white !important;
-}
-
-div[data-baseweb="select"] > div{
-    border:1px solid #cbd5e1 !important;
-    border-radius:8px !important;
-    background:white !important;
-}
-
-/* TABEL */
-.table-gudang{
-    width:100%;
-    border-collapse:collapse;
-    background:white;
-    border-radius:15px;
-    overflow:hidden;
-    box-shadow:0 4px 15px rgba(0,0,0,0.08);
-}
-
-.table-gudang th{
-    background:linear-gradient(135deg,#118d80,#0f766e);
-    color:white;
-    padding:12px;
-    text-align:left;
-    border:1px solid #dfe6e9;
-}
-
-.table-gudang td{
-    padding:12px;
-    border:1px solid #e5e7eb;
-}
-
-.table-gudang tr:nth-child(even){
-    background:#f8fafc;
-}
-
-/* BUTTON */
-div.stButton > button{
-    border-radius:10px !important;
-    font-weight:bold !important;
-}
-
-/* WARNA TOMBOL */
-div.element-container:has(.marker-hijau)
-+ div.element-container button{
-    background:#22c55e !important;
-    color:white !important;
-}
-
-div.element-container:has(.marker-merah)
-+ div.element-container button{
-    background:#ef4444 !important;
-    color:white !important;
-}
-
+/* Styling khusus untuk form container */
+div[data-testid="stForm"] { border: 1px solid #e5e7eb !important; border-radius: 12px !important; padding: 20px !important; background-color: #ffffff !important; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
 </style>
 """, unsafe_allow_html=True)
 
 # ==================================================
-# HEADER
+# LOGIKA PROSES LOGO
 # ==================================================
-st.markdown("""
+def get_image_as_base64(image_path):
+    try:
+        if not Path(image_path).is_file(): return ""
+        with open(image_path, "rb") as image_file:
+            return f"data:image/png;base64,{base64.b64encode(image_file.read()).decode('utf-8')}"
+    except Exception: return ""
+
+nama_file_logo = r"C:\Users\Mochammad Rezka\Pictures\Logo Unwim.png"
+logo_base64 = get_image_as_base64(nama_file_logo)
+display_style = "display: block;" if logo_base64 else "display: none;"
+
+sekarang = datetime.datetime.now()
+bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+tanggal_otomatis = f"{sekarang.day:02d} {bulan_indo[sekarang.month-1]} {sekarang.year}"
+
+# ==================================================
+# HEADER TAMPILAN
+# ==================================================
+st.markdown(f"""
 <div class="custom-header">
-    <h1>📦 SISTEM STOK BARANG</h1>
-    <h3>REKTORAT UNIVERSITAS WINAYA MUKTI</h3>
+<div class="header-left">
+<img src="{logo_base64}" class="header-logo" alt="Logo" style="{display_style}">
+<div class="header-title">
+<div class="title-main">SISTEM STOK BARANG</div>
+<div class="title-sub">REKTORAT UNIVERSITAS WINAYA MUKTI</div>
+</div>
+</div>
+<div class="header-right">
+<div class="header-item">
+<svg class="icon-svg" viewBox="0 0 24 24">
+<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+<line x1="16" y1="2" x2="16" y2="6"></line>
+<line x1="8" y1="2" x2="8" y2="6"></line>
+<line x1="3" y1="10" x2="21" y2="10"></line>
+</svg>
+{tanggal_otomatis}
+</div>
+</div>
 </div>
 """, unsafe_allow_html=True)
-# ==================================================
-# FITUR ZOOM
-# ==================================================
 
-zoom = st.slider(
-    "🔍 Zoom Tampilan",
-    min_value=70,
-    max_value=130,
-    value=90,
-    step=5
-)
-
-st.markdown(f"""
-<style>
-html {{
-    zoom:{zoom}%;
-}}
-</style>
-""", unsafe_allow_html=True)
 # ==================================================
-# DATABASE AWAL
+# DATABASE AWAL & RIWAYAT TRANSAKSI
 # ==================================================
 if "df_stok" not in st.session_state:
-
-    data_awal = {
+    st.session_state.df_stok = pd.DataFrame({
         "ID Barang":["1","2","3","4","5"],
-        "Nama Barang":[
-            "Kertas A4",
-            "Pena Pilot",
-            "Tinta Printer",
-            "Buku Tulis",
-            "Spidol"
-        ],
-        "Kategori":[
-            "ATK",
-            "ATK",
-            "Elektronik",
-            "ATK",
-            "ATK"
-        ],
+        "Nama Barang":["Kertas A4", "Pena Pilot", "Tinta Printer", "Buku Tulis", "Spidol"],
+        "Kategori":["ATK", "ATK", "Elektronik", "ATK", "ATK"],
         "Jumlah Stok":[35,15,5,20,0],
-        "Satuan":[
-            "Rim",
-            "Pcs",
-            "Pcs",
-            "Pcs",
-            "Pcs"
-        ],
-        "Pengambil":[
-            "FEB",
-            "FAHUTAN",
-            "FAPERTA",
-            "FEB",
-            "FTPA"
-        ]
-    }
+        "Satuan":["Rim", "Pcs", "Pcs", "Pcs", "Pcs"]
+    })
 
-    st.session_state.df_stok = pd.DataFrame(data_awal)
+if "df_transaksi" not in st.session_state:
+    st.session_state.df_transaksi = pd.DataFrame(columns=[
+        "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil"
+    ])
 
-# ==================================================
-# STATUS STOK
-# ==================================================
 def status_stok(jumlah):
-    if jumlah > 20:
-        return "🟢 Good Stock"
-    elif jumlah > 0:
-        return "🟡 Low Stock"
-    else:
-        return "🔴 Out Of Stock"
+    if jumlah > 20: return '<div class="status-badge-container"><div class="status-badge good"><span class="badge-dot"></span>Good Stock</div></div>'
+    elif jumlah > 0: return '<div class="status-badge-container"><div class="status-badge low"><span class="badge-dot"></span>Low Stock</div></div>'
+    else: return '<div class="status-badge-container"><div class="status-badge out"><span class="badge-dot"></span>Out Of Stock</div></div>'
 
-st.session_state.df_stok["Status"] = (
-    st.session_state.df_stok["Jumlah Stok"]
-    .apply(status_stok)
-)
+st.session_state.df_stok["Status"] = st.session_state.df_stok["Jumlah Stok"].apply(status_stok)
 
 # ==================================================
-# LAYOUT
+# PEMBUATAN TAB (SLIDE)
 # ==================================================
-col_kiri, col_tengah, col_kanan = st.columns(
-    [1.1, 3, 1.2],
-    gap="large"
-)
+tab1, tab2 = st.tabs(["📊 Dashboard Utama", "🕒 Riwayat Transaksi"])
 
 # ==================================================
-# KOLOM KIRI
+# SLIDE 1: DASHBOARD UTAMA
 # ==================================================
-with col_kiri:
+with tab1:
+    
+    # 🌟 Notifikasi Tab 1
+    if "notif_tab1" in st.session_state:
+        st.success(st.session_state.notif_tab1)
+        del st.session_state.notif_tab1
 
-    st.subheader("Ringkasan Stok")
+    col_kiri, col_tengah, col_kanan = st.columns([1.1, 3, 1.2], gap="large")
 
-    total_produk = len(st.session_state.df_stok)
+    with col_kiri:
+        st.markdown('<h3 style="color: #12715b; margin: 10px 0 20px 0; font-size: 19px; font-weight: bold; letter-spacing: 0.5px;">RINGKASAN STOK</h3>', unsafe_allow_html=True)
+        total_produk = len(st.session_state.df_stok)
+        barang_langka = len(st.session_state.df_stok[st.session_state.df_stok["Jumlah Stok"] < 10])
 
-    barang_langka = len(
-        st.session_state.df_stok[
-            st.session_state.df_stok["Jumlah Stok"] < 10
-        ]
-    )
-
-    total_stok = (
-        st.session_state.df_stok["Jumlah Stok"]
-        .sum()
-    )
-
-    st.markdown(f"""
-    <div class="card-ringkasan">
-        <div class="card-top">
-            <div class="icon-circle hijau">📦</div>
-            <div>
-                <div class="judul-card" style="color:#118d80;">
-                TOTAL PRODUK
-                </div>
-                <div class="angka-card" style="color:#118d80;">
-                {total_produk}
-                </div>
+        st.markdown(f"""
+        <div class="card-ringkasan-baru hijau">
+            <div class="circle-icon-baru hijau">📦</div>
+            <div class="content-kanan-baru">
+                <div class="title-card-baru" style="color: #12715b;">TOTAL MACAM PRODUK</div>
+                <div class="angka-card-baru" style="color: #12715b;">{total_produk}</div>
             </div>
         </div>
-        <div class="keterangan">
-        Total seluruh jenis produk yang tersedia
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="card-ringkasan">
-        <div class="card-top">
-            <div class="icon-circle kuning">⚠️</div>
-            <div>
-                <div class="judul-card" style="color:#ff8f00;">
-                BARANG HAMPIR HABIS
-                </div>
-                <div class="angka-card" style="color:#ff8f00;">
-                {barang_langka}
-                </div>
+        <div class="card-ringkasan-baru kuning">
+            <div class="circle-icon-baru kuning">⚠️</div>
+            <div class="content-kanan-baru">
+                <div class="title-card-baru" style="color: #ff8f00;">BARANG HAMPIR HABIS</div>
+                <div class="angka-card-baru" style="color: #ff8f00;">{barang_langka}</div>
+                <div class="desc-card-baru">Segera Restock</div>
             </div>
         </div>
-        <div class="keterangan">
-        Segera lakukan restock
+        """, unsafe_allow_html=True)
+
+        st.markdown("### Grafik Stok")
+        chart_data = st.session_state.df_stok[["Nama Barang","Jumlah Stok"]].set_index("Nama Barang")
+        st.bar_chart(chart_data)
+
+    with col_tengah:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px; margin-bottom: 20px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#12715b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <h3 style="color: #12715b; margin: 0; font-size: 20px; font-weight: bold; letter-spacing: 0.5px;">MANAJEMEN STOK</h3>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="card-ringkasan">
-        <div class="card-top">
-            <div class="icon-circle biru">📊</div>
-            <div>
-                <div class="judul-card" style="color:#2563eb;">
-                TOTAL STOK
-                </div>
-                <div class="angka-card" style="color:#2563eb;">
-                {total_stok}
-                </div>
-            </div>
-        </div>
-        <div class="keterangan">
-        Total keseluruhan stok barang
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        c1,c2,c3,c4,c5 = st.columns([2.0, 1.5, 0.8, 1.2, 1.5])
+        with c1: input_nama = st.text_input("Nama Barang", placeholder="Ketik Disini", key="add_nama")
+        with c2: input_kategori = st.text_input("Kategori", placeholder="Contoh: ATK", key="add_kat")
+        with c3: input_qty = st.number_input("Jml", min_value=0, step=1, key="add_qty")
+        with c4: input_satuan = st.selectbox("Satuan", ["Pcs","Rim","Lusin"], key="add_satuan")
+        with c5:
+            st.markdown('<div class="marker-teal" style="display:none;"></div>', unsafe_allow_html=True)
+            btn_add = st.button("+ Add Item", use_container_width=True, key="btn_add")
 
-    st.markdown("### Grafik Stok")
-
-    chart_data = (
-        st.session_state.df_stok[
-            ["Nama Barang","Jumlah Stok"]
-        ]
-        .set_index("Nama Barang")
-    )
-
-    st.bar_chart(chart_data)
-
-# ==================================================
-# KOLOM TENGAH
-# ==================================================
-with col_tengah:
-
-    st.subheader("Manajemen Stok")
-
-    c1,c2,c3,c4,c5,c6 = st.columns(
-        [1.5,1.5,0.8,1.2,1.4,1]
-    )
-
-    with c1:
-        input_nama = st.text_input(
-            "Nama Barang",
-            placeholder="Misal: Penghapus"
-        )
-
-    with c2:
-        input_kategori = st.text_input(
-            "Kategori",
-            placeholder="Misal: ATK"
-        )
-
-    with c3:
-        input_qty = st.number_input(
-            "Jml",
-            min_value=0,
-            step=1
-        )
-
-    with c4:
-        input_satuan = st.selectbox(
-            "Satuan",
-            ["Pcs","Rim","Lusin"]
-        )
-
-    with c5:
-        input_pengambil = st.selectbox(
-            "Pengambil",
-            [
-                "FEB",
-                "FAHUTAN",
-                "FAPERTA",
-                "FTPA"
-            ]
-        )
-
-    with c6:
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        btn_add = st.button(
-            "➕ Add Item",
-            use_container_width=True
-        )
-
-    if btn_add and input_nama != "":
-
-        id_baru = str(
-            len(st.session_state.df_stok) + 1
-        )
-
-        data_baru = pd.DataFrame({
-            "ID Barang":[id_baru],
-            "Nama Barang":[input_nama],
-            "Kategori":[input_kategori],
-            "Jumlah Stok":[input_qty],
-            "Satuan":[input_satuan],
-            "Pengambil":[input_pengambil]
-        })
-
-        st.session_state.df_stok = pd.concat(
-            [
-                st.session_state.df_stok,
-                data_baru
-            ],
-            ignore_index=True
-        )
-
-        st.rerun()
-
-    tabel_html = (
-        st.session_state.df_stok
-        .to_html(
-            classes="table-gudang",
-            index=False,
-            escape=False
-        )
-    )
-
-    st.markdown(
-        tabel_html,
-        unsafe_allow_html=True
-    )
-
-# ==================================================
-# KOLOM KANAN
-# ==================================================
-with col_kanan:
-
-    st.subheader("Transaksi")
-
-    input_barcode = st.text_input(
-        "Scan Barcode / Input ID",
-        placeholder="Ketik ID Barang"
-    )
-
-    qty = st.number_input(
-        "Quantity",
-        min_value=1,
-        step=1
-    )
-
-    b1,b2 = st.columns(2)
-
-    with b1:
-        st.markdown(
-            '<div class="marker-hijau" style="display:none;"></div>',
-            unsafe_allow_html=True
-        )
-
-        btn_masuk = st.button(
-            "Barang Masuk",
-            use_container_width=True
-        )
-
-    with b2:
-        st.markdown(
-            '<div class="marker-merah" style="display:none;"></div>',
-            unsafe_allow_html=True
-        )
-
-        btn_keluar = st.button(
-            "Barang Keluar",
-            use_container_width=True
-        )
-
-    # BARANG MASUK
-    if btn_masuk:
-
-        if input_barcode in st.session_state.df_stok["ID Barang"].values:
-
-            st.session_state.df_stok.loc[
-                st.session_state.df_stok["ID Barang"] == input_barcode,
-                "Jumlah Stok"
-            ] += qty
-
-            st.success("Stok berhasil ditambahkan")
+        if btn_add and input_nama != "":
+            id_baru = str(len(st.session_state.df_stok) + 1)
+            data_baru = pd.DataFrame({
+                "ID Barang":[id_baru], "Nama Barang":[input_nama],
+                "Kategori":[input_kategori], "Jumlah Stok":[input_qty],
+                "Satuan":[input_satuan]
+            })
+            st.session_state.df_stok = pd.concat([st.session_state.df_stok, data_baru], ignore_index=True)
+            st.session_state.notif_tab1 = f"✅ Barang '{input_nama}' berhasil ditambahkan ke gudang."
             st.rerun()
 
-        else:
-            st.error("ID Barang tidak ditemukan")
+        # ==================================================
+        # EDIT MASTER BARANG (PILIH NAMA BARANG)
+        # ==================================================
+        is_editing_master = st.session_state.get("edit_master_nama", "-") != "-"
+        
+        with st.expander("✏️ Edit / Hapus Master Barang", expanded=is_editing_master):
+            pilihan_barang = ["-"] + list(st.session_state.df_stok["Nama Barang"])
+            edit_nama_pilih = st.selectbox("Pilih Nama Barang:", pilihan_barang, key="edit_master_nama")
+            
+            if edit_nama_pilih != "-":
+                idx_edit = st.session_state.df_stok.index[st.session_state.df_stok["Nama Barang"] == edit_nama_pilih].tolist()[0]
+                data_edit = st.session_state.df_stok.iloc[idx_edit]
+                
+                e1, e2, e3, e4 = st.columns([2.0, 1.5, 0.8, 1.2])
+                with e1: edit_nama = st.text_input("Nama Baru", data_edit["Nama Barang"], key="e_nama")
+                with e2: edit_kat = st.text_input("Kategori Baru", data_edit["Kategori"], key="e_kat")
+                with e3: edit_qty = st.number_input("Jml Baru", value=int(data_edit["Jumlah Stok"]), key="e_qty")
+                with e4: 
+                    try: idx_satuan = ["Pcs","Rim","Lusin"].index(data_edit["Satuan"])
+                    except ValueError: idx_satuan = 0
+                    edit_satuan = st.selectbox("Satuan Baru", ["Pcs","Rim","Lusin"], index=idx_satuan, key="e_satuan")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                ed_b1, ed_b2 = st.columns(2)
+                
+                with ed_b1:
+                    st.markdown('<div class="marker-hijau" style="display:none;"></div>', unsafe_allow_html=True)
+                    if st.button("💾 Simpan Perubahan", use_container_width=True, key="btn_simpan_master"):
+                        st.session_state.df_stok.at[idx_edit, "Nama Barang"] = edit_nama
+                        st.session_state.df_stok.at[idx_edit, "Kategori"] = edit_kat
+                        st.session_state.df_stok.at[idx_edit, "Jumlah Stok"] = edit_qty
+                        st.session_state.df_stok.at[idx_edit, "Satuan"] = edit_satuan
+                        
+                        st.session_state.notif_tab1 = f"✅ Data '{edit_nama}' berhasil diubah."
+                        if "edit_master_nama" in st.session_state:
+                            del st.session_state["edit_master_nama"]
+                        st.rerun()
+                        
+                with ed_b2:
+                    st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
+                    if st.button("🗑️ Hapus Barang", use_container_width=True, key="btn_hapus_master"):
+                        nama_terhapus = data_edit["Nama Barang"]
+                        st.session_state.df_stok = st.session_state.df_stok.drop(idx_edit).reset_index(drop=True)
+                        
+                        st.session_state.notif_tab1 = f"🗑️ Barang '{nama_terhapus}' berhasil dihapus dari sistem."
+                        if "edit_master_nama" in st.session_state:
+                            del st.session_state["edit_master_nama"]
+                        st.rerun()
 
-    # BARANG KELUAR
-    if btn_keluar:
+        st.markdown("<br>", unsafe_allow_html=True)
+        tabel_html = st.session_state.df_stok.to_html(classes="table-gudang", index=False, escape=False)
+        st.markdown(tabel_html, unsafe_allow_html=True)
 
-        if input_barcode in st.session_state.df_stok["ID Barang"].values:
+    with col_kanan:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#12715b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <h3 style="color: #12715b; margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 0.5px;">TRANSAKSI</h3>
+        </div>
+        """, unsafe_allow_html=True)
 
-            stok_sekarang = (
-                st.session_state.df_stok.loc[
-                    st.session_state.df_stok["ID Barang"] == input_barcode,
-                    "Jumlah Stok"
-                ].values[0]
+        # ==================================================
+        # 🌟 FORM TRANSAKSI (ANTI-REFRESH) DAN PERUBAHAN TATA LETAK
+        # ==================================================
+        with st.form("form_transaksi", clear_on_submit=True):
+            input_barcode = st.text_input("Scan Barcode / Input ID", placeholder="Ketik angka ID Barang (1-5)")
+            
+            # Mengubah nama label menjadi "Jumlah"
+            qty = st.number_input("Jumlah", min_value=1, step=1)
+            
+            input_pengambil = st.selectbox(
+                "Pengambil", ["-", "FEB", "FAHUTAN", "FAPERTA", "FTPA"],
+                help="Pilih fakultas pengambil untuk pencatatan riwayat transaksi."
             )
 
-            if stok_sekarang >= qty:
+            # Tombol disusun secara Vertikal / Bertumpuk
+            st.markdown('<div class="marker-hijau" style="display:none;"></div>', unsafe_allow_html=True)
+            btn_masuk = st.form_submit_button("📥 Barang Masuk", use_container_width=True)
 
-                st.session_state.df_stok.loc[
-                    st.session_state.df_stok["ID Barang"] == input_barcode,
-                    "Jumlah Stok"
-                ] -= qty
+            st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
+            btn_keluar = st.form_submit_button("📤 Barang Keluar", use_container_width=True)
 
-                st.success("Stok berhasil dikurangi")
+        # Proses dieksekusi HANYA setelah tombol di dalam form ditekan
+        if btn_masuk:
+            if input_barcode in st.session_state.df_stok["ID Barang"].values:
+                nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
+                waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
+
+                log_baru = pd.DataFrame({
+                    "Waktu": [waktu_skrg],
+                    "Jenis": ['<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'],
+                    "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
+                    "Jml Transaksi": [f"+ {qty}"], "Pengambil": ["-"]
+                })
+                st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
+                
+                st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} ditambahkan ke stok."
                 st.rerun()
-
             else:
-                st.error("Stok tidak mencukupi")
+                st.error("❌ Gagal: ID Barang tidak ditemukan.")
 
+        if btn_keluar:
+            if input_barcode in st.session_state.df_stok["ID Barang"].values:
+                stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
+                if stok_sekarang >= qty:
+                    nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
+                    waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
+
+                    log_baru = pd.DataFrame({
+                        "Waktu": [waktu_skrg],
+                        "Jenis": ['<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'],
+                        "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
+                        "Jml Transaksi": [f"- {qty}"], "Pengambil": [input_pengambil]
+                    })
+                    st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
+                    
+                    st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} dikeluarkan."
+                    st.rerun()
+                else:
+                    st.error(f"❌ Gagal: Stok {nama_brg} tidak mencukupi. (Sisa: {stok_sekarang})")
+            else:
+                st.error("❌ Gagal: ID Barang tidak ditemukan.")
+
+# ==================================================
+# SLIDE 2: RIWAYAT TRANSAKSI
+# ==================================================
+with tab2:
+    
+    # 🌟 Notifikasi Tab 2
+    if "notif_tab2" in st.session_state:
+        st.success(st.session_state.notif_tab2)
+        del st.session_state.notif_tab2
+
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 15px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#12715b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <h3 style="color: #12715b; margin: 0; font-size: 20px; font-weight: bold; letter-spacing: 0.5px;">RIWAYAT TRANSAKSI</h3>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 1. Komponen Filter (Menggunakan ID/key unik agar tidak bentrok)
+    f1, f2 = st.columns(2)
+    with f1:
+        rentang_tanggal = st.date_input(
+            "📅 Pilih Rentang Tanggal", 
+            value=(datetime.date.today(), datetime.date.today()),
+            key="unik_filter_tanggal"
+        )
+        
+        if len(rentang_tanggal) == 2:
+            tgl_mulai, tgl_akhir = rentang_tanggal
         else:
-            st.error("ID Barang tidak ditemukan")
+            tgl_mulai = tgl_akhir = rentang_tanggal[0]
+            
+    with f2:
+        list_barang = ["Semua Barang"] + sorted(list(st.session_state.df_stok["Nama Barang"].unique()))
+        filter_barang = st.selectbox(
+            "📦 Filter Nama Barang", 
+            list_barang,
+            key="unik_filter_barang"
+        )
+
+    if st.session_state.df_transaksi.empty:
+        st.info("Belum ada transaksi yang tercatat di sistem. Silakan lakukan transaksi terlebih dahulu.")
+    else:
+        
+        # ==================================================
+        # 🌟 EDIT / HAPUS RIWAYAT TRANSAKSI (TWO-STEP)
+        # ==================================================
+        is_editing_tx = st.session_state.get("sel_edit_nama_tx", "-") != "-"
+        
+        with st.expander("✏️ Edit / Hapus Riwayat Transaksi", expanded=is_editing_tx):
+            
+            # Langkah 1: Pilih Nama Barang
+            pilihan_barang_tx = ["-"] + list(st.session_state.df_transaksi["Nama Barang"].unique())
+            edit_nama_tx = st.selectbox("1. Pilih Nama Barang:", pilihan_barang_tx, key="sel_edit_nama_tx")
+            
+            if edit_nama_tx != "-":
+                
+                # Filter df khusus untuk barang yang dipilih
+                df_tx_filtered = st.session_state.df_transaksi[st.session_state.df_transaksi["Nama Barang"] == edit_nama_tx]
+                
+                # Langkah 2: Pilih Detail Transaksi-nya
+                tx_options = ["-"]
+                for i, r in df_tx_filtered.iterrows():
+                    jenis_clean = re.sub(r'<[^>]+>', '', r['Jenis'])
+                    tx_options.append(f"{i} | {r['Waktu']} | {jenis_clean} ({r['Jml Transaksi']})")
+                    
+                sel_tx = st.selectbox("2. Pilih Waktu Transaksi yang akan diedit:", tx_options, key="sel_edit_tx_detail")
+                
+                if sel_tx != "-":
+                    idx_tx = int(sel_tx.split(" | ")[0])
+                    row_tx = st.session_state.df_transaksi.loc[idx_tx]
+                    
+                    old_jenis_bersih = re.sub(r'<[^>]+>', '', row_tx['Jenis'])
+                    old_qty = int(re.sub(r'\D', '', str(row_tx['Jml Transaksi'])))
+                    
+                    te1, te2, te3 = st.columns([1.5, 1.5, 1.5])
+                    with te1:
+                        idx_j = 0 if old_jenis_bersih == "Masuk" else 1
+                        new_jenis = st.selectbox("Ubah Jenis", ["Masuk", "Keluar"], index=idx_j, key="e_tx_jenis")
+                    with te2:
+                        new_qty = st.number_input("Ubah Jumlah", value=old_qty, min_value=1, step=1, key="e_tx_qty")
+                    with te3:
+                        fakultas = ["-", "FEB", "FAHUTAN", "FAPERTA", "FTPA"]
+                        try: idx_p = fakultas.index(row_tx["Pengambil"])
+                        except ValueError: idx_p = 0
+                        new_pengambil = st.selectbox("Ubah Pengambil", fakultas, index=idx_p, key="e_tx_pengambil")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    ed_tx1, ed_tx2 = st.columns(2)
+                    
+                    # FUNGSI SIMPAN PERUBAHAN TRANSAKSI
+                    with ed_tx1:
+                        st.markdown('<div class="marker-hijau" style="display:none;"></div>', unsafe_allow_html=True)
+                        if st.button("💾 Simpan Perubahan Transaksi", use_container_width=True, key="btn_save_tx"):
+                            id_brg = row_tx['ID Barang']
+                            
+                            # 1. Reverse efek stok lama
+                            if old_jenis_bersih == "Masuk":
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= old_qty
+                            else:
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += old_qty
+                                
+                            # 2. Terapkan efek stok baru
+                            if new_jenis == "Masuk":
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += new_qty
+                                jenis_html = '<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'
+                                jml_str = f"+ {new_qty}"
+                            else:
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= new_qty
+                                jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
+                                jml_str = f"- {new_qty}"
+                                
+                            # 3. Update data di df_transaksi
+                            st.session_state.df_transaksi.at[idx_tx, 'Jenis'] = jenis_html
+                            st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
+                            st.session_state.df_transaksi.at[idx_tx, 'Pengambil'] = new_pengambil
+                            
+                            st.session_state.notif_tab2 = "✅ Riwayat Transaksi berhasil diubah dan Stok Master telah disesuaikan."
+                            if "sel_edit_nama_tx" in st.session_state: del st.session_state["sel_edit_nama_tx"]
+                            st.rerun()
+
+                    # FUNGSI HAPUS TRANSAKSI
+                    with ed_tx2:
+                        st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
+                        if st.button("🗑️ Hapus Transaksi", use_container_width=True, key="btn_del_tx"):
+                            id_brg = row_tx['ID Barang']
+                            
+                            # Reverse efek stok lama
+                            if old_jenis_bersih == "Masuk":
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= old_qty
+                            else:
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += old_qty
+                                
+                            # Hapus baris transaksi
+                            st.session_state.df_transaksi = st.session_state.df_transaksi.drop(idx_tx).reset_index(drop=True)
+                            
+                            st.session_state.notif_tab2 = "🗑️ Transaksi dibatalkan. Stok Master telah dikembalikan seperti semula."
+                            if "sel_edit_nama_tx" in st.session_state: del st.session_state["sel_edit_nama_tx"]
+                            st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # 2. Proses penyaringan berdasarkan Rentang Waktu
+        df_filter = st.session_state.df_transaksi.copy()
+        
+        df_filter["Tanggal_Str"] = df_filter["Waktu"].apply(lambda x: x.split()[0])
+        df_filter["Tanggal_Obj"] = pd.to_datetime(df_filter["Tanggal_Str"]).dt.date
+        
+        df_filter = df_filter[(df_filter["Tanggal_Obj"] >= tgl_mulai) & (df_filter["Tanggal_Obj"] <= tgl_akhir)]
+        df_filter = df_filter.sort_values(by="Waktu", ascending=False)
+        
+        if filter_barang != "Semua Barang":
+            df_filter = df_filter[df_filter["Nama Barang"] == filter_barang]
+            
+        if df_filter.empty:
+            st.info(f"Tidak ada aktivitas transaksi dari {tgl_mulai.strftime('%d %B %Y')} s/d {tgl_akhir.strftime('%d %B %Y')}.")
+        else:
+            # 3. Menyiapkan Data untuk Ditampilkan (Tanggal dikembalikan ke tabel agar tidak bingung)
+            df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil"]]
+            df_display = df_display.rename(columns={"Tanggal_Str": "Tanggal"})
+            
+            # Membersihkan HTML Badge untuk Export
+            df_export = df_display.copy()
+            df_export["Jenis"] = df_export["Jenis"].replace({'<span[^>]*>': '', '</span>': ''}, regex=True)
+
+            # Hitung Ringkasan Data untuk Export
+            jml_masuk = len(df_export[df_export["Jenis"] == "Masuk"])
+            jml_keluar = len(df_export[df_export["Jenis"] == "Keluar"])
+            teks_periode = f"{tgl_mulai.strftime('%d %b %Y')} - {tgl_akhir.strftime('%d %b %Y')}"
+
+            col_d1, col_d2 = st.columns(2)
+
+            # =====================================
+            # EXPORT EXCEL (AUTO-WIDTH)
+            # =====================================
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
+                df_export.to_excel(writer, index=False, sheet_name="Laporan")
+                worksheet = writer.sheets['Laporan']
+                
+                worksheet.set_column('A:A', 14) # Tanggal
+                worksheet.set_column('B:B', 25) # Nama Barang
+                worksheet.set_column('C:C', 10) # Jenis
+                worksheet.set_column('D:D', 12) # ID Barang
+                worksheet.set_column('E:E', 15) # Jml Transaksi
+                worksheet.set_column('F:F', 20) # Pengambil
+                worksheet.autofilter('A1:F1')   # Fitur Filter Excel
+            
+            with col_d1:
+                st.download_button(
+                    label="📥 Download Laporan Excel",
+                    data=output_excel.getvalue(),
+                    file_name=f"Laporan_Transaksi_{tgl_mulai}_sd_{tgl_akhir}.xlsx",
+                    mime="application/vnd.ms-excel",
+                    use_container_width=True,
+                    key="btn_dl_excel"
+                )
+
+            # =====================================
+            # EXPORT WORD (DENGAN HEADER HIJAU & RINGKASAN)
+            # =====================================
+            doc = Document()
+            
+            # 1. Membuat Header Hijau Mirip Web
+            table_hdr = doc.add_table(rows=1, cols=2)
+            table_hdr.columns[0].width = Inches(1.0)
+            table_hdr.columns[1].width = Inches(5.5)
+            
+            cell_logo = table_hdr.cell(0, 0)
+            cell_text = table_hdr.cell(0, 1)
+            
+            for cell in [cell_logo, cell_text]:
+                tcPr = cell._element.get_or_add_tcPr()
+                shd = OxmlElement('w:shd')
+                shd.set(qn('w:fill'), '12715B')
+                tcPr.append(shd)
+                
+            if Path(nama_file_logo).is_file():
+                p_logo = cell_logo.paragraphs[0]
+                p_logo.alignment = 1 
+                r_logo = p_logo.add_run()
+                r_logo.add_picture(nama_file_logo, width=Inches(0.7))
+                
+            p_text = cell_text.paragraphs[0]
+            run_title = p_text.add_run("SISTEM STOK BARANG\n")
+            run_title.bold = True
+            run_title.font.size = Pt(16)
+            run_title.font.color.rgb = RGBColor(255, 255, 255)
+            
+            run_sub = p_text.add_run("REKTORAT UNIVERSITAS WINAYA MUKTI")
+            run_sub.font.size = Pt(10)
+            run_sub.font.color.rgb = RGBColor(255, 255, 255)
+            
+            # 2. Menuliskan Ringkasan Data sebelum Tabel Panjang
+            doc.add_paragraph() 
+            p_info = doc.add_paragraph()
+            p_info.add_run("RINGKASAN TRANSAKSI\n").bold = True
+            p_info.add_run(f"Periode Laporan : {teks_periode}\n")
+            p_info.add_run(f"Total Aktivitas   : {len(df_export)} Transaksi ({jml_masuk} Masuk | {jml_keluar} Keluar)")
+            doc.add_paragraph() 
+            
+            # 3. Membuat Tabel Data Transaksi (Table Grid)
+            table_data = doc.add_table(rows=1, cols=len(df_export.columns))
+            table_data.style = 'Table Grid'
+            hdr_cells = table_data.rows[0].cells
+            
+            # Formatting Header Tabel Word
+            for i, col_name in enumerate(df_export.columns):
+                hdr_cells[i].text = col_name
+                hdr_cells[i].paragraphs[0].runs[0].bold = True
+            
+            # Memasukkan Data ke Tabel
+            for _, row in df_export.iterrows():
+                row_cells = table_data.add_row().cells
+                for i, value in enumerate(row):
+                    row_cells[i].text = str(value)
+            
+            output_word = io.BytesIO()
+            doc.save(output_word)
+            
+            with col_d2:
+                st.download_button(
+                    label="📄 Download Laporan Word",
+                    data=output_word.getvalue(),
+                    file_name=f"Laporan_Transaksi_{tgl_mulai}_sd_{tgl_akhir}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    key="btn_dl_word"
+                )
+
+            # Tampilkan HTML Tabel di web
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(df_display.to_html(classes="table-gudang", index=False, escape=False), unsafe_allow_html=True)
