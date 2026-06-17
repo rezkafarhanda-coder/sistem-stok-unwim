@@ -168,6 +168,7 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_transaksi = pd.DataFrame(columns=[
             "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil"
         ])
+        st.error(f"TERNYATA INI PENYEBABNYA: {e}")
         st.warning("⚠️ Aplikasi berjalan dalam mode lokal. Hubungkan ke Google Sheets untuk menyimpan data permanen.")
 
 def status_stok(jumlah):
