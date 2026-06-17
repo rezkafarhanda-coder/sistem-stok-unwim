@@ -151,9 +151,9 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_stok = conn.read(worksheet="Stok", ttl=0).dropna(how="all")
         st.session_state.df_transaksi = conn.read(worksheet="Transaksi", ttl=0).dropna(how="all")
         
-        # Konversi tipe data agar tidak error saat dihitung
-        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str)
-        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0)
+ # Konversi tipe data agar tidak error saat dihitung (dan menghilangkan .0)
+        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
+        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0).astype('Int64')
         
         st.session_state.data_ditarik = True
     except Exception as e:
