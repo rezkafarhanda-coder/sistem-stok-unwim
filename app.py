@@ -110,7 +110,7 @@ nama_file_logo = "logo.png"
 logo_base64 = get_image_as_base64(nama_file_logo)
 display_style = "display: block;" if logo_base64 else "display: none;"
 
-sekarang = datetime.datetime.now()
+sekarang = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
 bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 tanggal_otomatis = f"{sekarang.day:02d} {bulan_indo[sekarang.month-1]} {sekarang.year}"
 
@@ -355,7 +355,7 @@ with tab1:
         if btn_masuk:
             if input_barcode in st.session_state.df_stok["ID Barang"].values:
                 nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
-                waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                waktu_skrg = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
 
                 st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
 
@@ -380,7 +380,7 @@ with tab1:
                 stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
                 if stok_sekarang >= qty:
                     nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
-                    waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    waktu_skrg = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
 
                     st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
 
