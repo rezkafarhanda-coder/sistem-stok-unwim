@@ -541,6 +541,8 @@ with tab2:
         else:
             df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil"]]
             df_display = df_display.rename(columns={"Tanggal_Str": "Tanggal"})
+            # Kode Sakti Penghapus .0 di Riwayat Transaksi (Layar, Excel, & Word)
+            df_display["ID Barang"] = df_display["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
             
             df_export = df_display.copy()
             df_export["Jenis"] = df_export["Jenis"].replace({'<span[^>]*>': '', '</span>': ''}, regex=True)
