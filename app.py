@@ -151,9 +151,13 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_stok = conn.read(worksheet="Stok", ttl=0).dropna(how="all")
         st.session_state.df_transaksi = conn.read(worksheet="Transaksi", ttl=0).dropna(how="all")
         
-        # Konversi tipe data agar tidak error saat dihitung
-        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str)
-        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0)
+        # Konversi tipe data agar tidak error saat dihitung dan membersihkan .0
+        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0).astype(int)
+        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
+        
+        # Membersihkan .0 pada ID Barang di tabel transaksi juga (jika ada)
+        if "ID Barang" in st.session_state.df_transaksi.columns:
+            st.session_state.df_transaksi["ID Barang"] = st.session_state.df_transaksi["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
         
         # FIX: Pastikan kolom 'Barang Tersedia' ada agar tidak KeyError pada data lama
         if "Barang Tersedia" not in st.session_state.df_transaksi.columns:
