@@ -370,27 +370,36 @@ with tab1:
             st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
             btn_keluar = st.form_submit_button("📤 Barang Keluar", use_container_width=True)
 
-        if btn_masuk:
+        if btn_keluar:
             if input_barcode in st.session_state.df_stok["ID Barang"].values:
-                nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
-                waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
+                if stok_sekarang >= qty:
+                    nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
+                    waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
+                    # 1. Kurangi stok master
+                    st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
+                    
+                    # 2. Tangkap total stok yang baru saja diupdate
+                    stok_terbaru = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
 
-                log_baru = pd.DataFrame({
-                    "Waktu": [waktu_skrg],
-                    "Jenis": ['<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'],
-                    "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
-                    "Jml Transaksi": [f"+ {qty}"], "Pengambil": ["-"]
-                    "Barang Tersedia": [stok_terbaru] 
-                })
-                st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
-                
-                simpan_stok()
-                simpan_transaksi()
-                
-                st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} ditambahkan ke stok."
-                st.rerun()
+                    # 3. Masukkan ke log transaksi
+                    log_baru = pd.DataFrame({
+                        "Waktu": [waktu_skrg],
+                        "Jenis": ['<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'],
+                        "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
+                        "Jml Transaksi": [f"- {qty}"], "Pengambil": [input_pengambil],
+                        "Barang Tersedia": [stok_terbaru]
+                    })
+                    st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
+                    
+                    simpan_stok()
+                    simpan_transaksi()
+                    
+                    st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} dikeluarkan."
+                    st.rerun()
+                else:
+                    st.error(f"❌ Gagal: Stok {nama_brg} tidak mencukupi. (Sisa: {stok_sekarang})")
             else:
                 st.error("❌ Gagal: ID Barang tidak ditemukan.")
 
