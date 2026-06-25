@@ -297,6 +297,25 @@ with tab1:
                         st.session_state.df_stok.at[idx_edit, "Kategori"] = edit_kat
                         st.session_state.df_stok.at[idx_edit, "Jumlah Stok"] = edit_qty
                         st.session_state.df_stok.at[idx_edit, "Satuan"] = edit_satuan
+                        if new_jenis == "Masuk":
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += new_qty
+                                jenis_html = '<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'
+                                jml_str = f"+ {new_qty}"
+                            else:
+                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= new_qty
+                                jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
+                                jml_str = f"- {new_qty}"
+                            
+                            # Ambil stok terbaru setelah diedit
+                            stok_terbaru_edit = st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0]
+                                
+                            st.session_state.df_transaksi.at[idx_tx, 'Jenis'] = jenis_html
+                            st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
+                            st.session_state.df_transaksi.at[idx_tx, 'Pengambil'] = new_pengambil
+                            st.session_state.df_transaksi.at[idx_tx, 'Barang Tersedia'] = stok_terbaru_edit # <--- TAMBAHAN DISINI
+                            
+                            simpan_stok()
+                            simpan_transaksi()
                         
                         simpan_stok() # Simpan ke Google Sheets
                         
@@ -363,6 +382,7 @@ with tab1:
                     "Jenis": ['<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'],
                     "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
                     "Jml Transaksi": [f"+ {qty}"], "Pengambil": ["-"]
+                    "Barang Tersedia": [stok_terbaru] 
                 })
                 st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
                 
@@ -388,6 +408,7 @@ with tab1:
                         "Jenis": ['<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'],
                         "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
                         "Jml Transaksi": [f"- {qty}"], "Pengambil": [input_pengambil]
+                        "Barang Tersedia": [stok_terbaru]
                     })
                     st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
                     
