@@ -305,32 +305,6 @@ with tab1:
                         if "edit_master_nama" in st.session_state:
                             del st.session_state["edit_master_nama"]
                         st.rerun()
-                        if new_jenis == "Masuk":
-                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += new_qty
-                                jenis_html = '<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'
-                                jml_str = f"+ {new_qty}"
-                            else:
-                                st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= new_qty
-                                jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
-                                jml_str = f"- {new_qty}"
-                            
-                            # Ambil stok terbaru setelah diedit
-                            stok_terbaru_edit = st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0]
-                                
-                            st.session_state.df_transaksi.at[idx_tx, 'Jenis'] = jenis_html
-                            st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
-                            st.session_state.df_transaksi.at[idx_tx, 'Pengambil'] = new_pengambil
-                            st.session_state.df_transaksi.at[idx_tx, 'Barang Tersedia'] = stok_terbaru_edit # <--- TAMBAHAN DISINI
-                            
-                            simpan_stok()
-                            simpan_transaksi()
-                        
-                        simpan_stok() # Simpan ke Google Sheets
-                        
-                        st.session_state.notif_tab1 = f"✅ Data '{edit_nama}' berhasil diubah."
-                        if "edit_master_nama" in st.session_state:
-                            del st.session_state["edit_master_nama"]
-                        st.rerun()
                         
                 with ed_b2:
                     st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
@@ -379,6 +353,34 @@ with tab1:
             btn_keluar = st.form_submit_button("📤 Barang Keluar", use_container_width=True)
 
 
+        # Logika Barang Masuk
+        if btn_masuk:
+            if input_barcode in st.session_state.df_stok["ID Barang"].values:
+                stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
+                nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
+                waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
+                stok_terbaru = stok_sekarang + qty
+
+                log_baru = pd.DataFrame({
+                    "Waktu": [waktu_skrg],
+                    "Jenis": ['<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'],
+                    "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
+                    "Jml Transaksi": [f"+ {qty}"], "Pengambil": [input_pengambil],
+                    "Barang Tersedia": [stok_terbaru]
+                })
+                st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
+                
+                simpan_stok()
+                simpan_transaksi()
+                
+                st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} ditambahkan."
+                st.rerun()
+            else:
+                st.error("❌ Gagal: ID Barang tidak ditemukan.")
+
+        # Logika Barang Keluar
         if btn_keluar:
             if input_barcode in st.session_state.df_stok["ID Barang"].values:
                 stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
@@ -387,12 +389,13 @@ with tab1:
                     waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
+                    stok_terbaru = stok_sekarang - qty
 
                     log_baru = pd.DataFrame({
                         "Waktu": [waktu_skrg],
                         "Jenis": ['<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'],
                         "ID Barang": [input_barcode], "Nama Barang": [nama_brg],
-                        "Jml Transaksi": [f"- {qty}"], "Pengambil": [input_pengambil]
+                        "Jml Transaksi": [f"- {qty}"], "Pengambil": [input_pengambil],
                         "Barang Tersedia": [stok_terbaru]
                     })
                     st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
@@ -499,9 +502,13 @@ with tab2:
                                 jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
                                 jml_str = f"- {new_qty}"
                                 
+                            # Ambil stok terbaru setelah diedit
+                            stok_terbaru_edit = st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0]
+
                             st.session_state.df_transaksi.at[idx_tx, 'Jenis'] = jenis_html
                             st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
                             st.session_state.df_transaksi.at[idx_tx, 'Pengambil'] = new_pengambil
+                            st.session_state.df_transaksi.at[idx_tx, 'Barang Tersedia'] = stok_terbaru_edit
                             
                             simpan_stok()
                             simpan_transaksi()
