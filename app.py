@@ -341,7 +341,7 @@ with tab1:
             qty = st.number_input("Jumlah", min_value=1, step=1)
             
             input_pengambil = st.selectbox(
-                "Pengambil", ["-", "FEB", "FAHUTAN", "FAPERTA", "FTPA"],
+                "Pengambil", ["-", "Yayasan", "Rektorat", "PMB", "FEB", "FAHUTAN", "FAPERTA", "FTPA"],
                 help="Pilih fakultas pengambil untuk pencatatan riwayat transaksi."
             )
 
@@ -538,7 +538,7 @@ with tab2:
         if df_filter.empty:
             st.info(f"Tidak ada aktivitas transaksi dari {tgl_mulai.strftime('%d %B %Y')} s/d {tgl_akhir.strftime('%d %B %Y')}.")
         else:
-            df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil"]]
+            df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil", "Barang Tersedia"]]
             df_display = df_display.rename(columns={"Tanggal_Str": "Tanggal"})
             
             df_export = df_display.copy()
@@ -560,6 +560,7 @@ with tab2:
                 worksheet.set_column('D:D', 12)
                 worksheet.set_column('E:E', 15)
                 worksheet.set_column('F:F', 20)
+                worksheet.set_column('G:G', 20)
                 worksheet.autofilter('A1:F1')
             
             with col_d1:
