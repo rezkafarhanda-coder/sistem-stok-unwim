@@ -155,6 +155,10 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str)
         st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0)
         
+        # FIX: Pastikan kolom 'Barang Tersedia' ada agar tidak KeyError pada data lama
+        if "Barang Tersedia" not in st.session_state.df_transaksi.columns:
+            st.session_state.df_transaksi["Barang Tersedia"] = 0
+            
         st.session_state.data_ditarik = True
     except Exception as e:
         # Jika gagal (aplikasi belum disambungkan ke Sheet), gunakan data sampel
@@ -165,8 +169,10 @@ if "data_ditarik" not in st.session_state:
             "Jumlah Stok":[35,15,5,20,0],
             "Satuan":["Rim", "Pcs", "Pcs", "Pcs", "Pcs"]
         })
+        
+        # FIX: Tambahkan 'Barang Tersedia' di data kerangka kosong
         st.session_state.df_transaksi = pd.DataFrame(columns=[
-            "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil"
+            "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil", "Barang Tersedia"
         ])
         st.warning("⚠️ Aplikasi berjalan dalam mode lokal. Hubungkan ke Google Sheets untuk menyimpan data permanen.")
 
