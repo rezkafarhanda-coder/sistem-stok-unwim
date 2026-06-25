@@ -163,6 +163,9 @@ if "data_ditarik" not in st.session_state:
         if "Barang Tersedia" not in st.session_state.df_transaksi.columns:
             st.session_state.df_transaksi["Barang Tersedia"] = 0
             
+        # FIX: Kunci kolom Barang Tersedia menjadi Integer murni agar tidak muncul .0
+        st.session_state.df_transaksi["Barang Tersedia"] = pd.to_numeric(st.session_state.df_transaksi["Barang Tersedia"], errors='coerce').fillna(0).astype(int)
+        
         st.session_state.data_ditarik = True
     except Exception as e:
         # Jika gagal (aplikasi belum disambungkan ke Sheet), gunakan data sampel
@@ -371,7 +374,7 @@ with tab1:
                 waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
-                stok_terbaru = stok_sekarang + qty
+                stok_terbaru = int(stok_sekarang + qty) # Kunci sebagai integer
 
                 log_baru = pd.DataFrame({
                     "Waktu": [waktu_skrg],
@@ -399,7 +402,7 @@ with tab1:
                     waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
-                    stok_terbaru = stok_sekarang - qty
+                    stok_terbaru = int(stok_sekarang - qty) # Kunci sebagai integer
 
                     log_baru = pd.DataFrame({
                         "Waktu": [waktu_skrg],
@@ -512,8 +515,8 @@ with tab2:
                                 jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
                                 jml_str = f"- {new_qty}"
                                 
-                            # Ambil stok terbaru setelah diedit
-                            stok_terbaru_edit = st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0]
+                            # Ambil stok terbaru setelah diedit (dan dikunci ke integer)
+                            stok_terbaru_edit = int(st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0])
 
                             st.session_state.df_transaksi.at[idx_tx, 'Jenis'] = jenis_html
                             st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
