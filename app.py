@@ -106,11 +106,11 @@ def get_image_as_base64(image_path):
             return f"data:image/png;base64,{base64.b64encode(image_file.read()).decode('utf-8')}"
     except Exception: return ""
 
-nama_file_logo = "logo.png"
+nama_file_logo = r"C:\Users\Mochammad Rezka\Pictures\Logo Unwim.png"
 logo_base64 = get_image_as_base64(nama_file_logo)
 display_style = "display: block;" if logo_base64 else "display: none;"
 
-sekarang = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+sekarang = datetime.datetime.now()
 bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 tanggal_otomatis = f"{sekarang.day:02d} {bulan_indo[sekarang.month-1]} {sekarang.year}"
 
@@ -151,9 +151,9 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_stok = conn.read(worksheet="Stok", ttl=0).dropna(how="all")
         st.session_state.df_transaksi = conn.read(worksheet="Transaksi", ttl=0).dropna(how="all")
         
- # Konversi tipe data agar tidak error saat dihitung (dan menghilangkan .0)
-        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
-        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0).astype('Int64')
+        # Konversi tipe data agar tidak error saat dihitung
+        st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str)
+        st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0)
         
         st.session_state.data_ditarik = True
     except Exception as e:
@@ -168,7 +168,6 @@ if "data_ditarik" not in st.session_state:
         st.session_state.df_transaksi = pd.DataFrame(columns=[
             "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil"
         ])
-        st.error(f"TERNYATA INI PENYEBABNYA: {e}")
         st.warning("⚠️ Aplikasi berjalan dalam mode lokal. Hubungkan ke Google Sheets untuk menyimpan data permanen.")
 
 def status_stok(jumlah):
@@ -338,7 +337,7 @@ with tab1:
         """, unsafe_allow_html=True)
 
         with st.form("form_transaksi", clear_on_submit=True):
-            input_barcode = st.text_input("Input ID", placeholder="Ketik angka ID Barang")
+            input_barcode = st.text_input("Scan Barcode / Input ID", placeholder="Ketik angka ID Barang (1-5)")
             qty = st.number_input("Jumlah", min_value=1, step=1)
             
             input_pengambil = st.selectbox(
@@ -355,7 +354,7 @@ with tab1:
         if btn_masuk:
             if input_barcode in st.session_state.df_stok["ID Barang"].values:
                 nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
-                waktu_skrg = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
+                waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
 
@@ -380,7 +379,7 @@ with tab1:
                 stok_sekarang = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"].values[0]
                 if stok_sekarang >= qty:
                     nama_brg = st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Nama Barang"].values[0]
-                    waktu_skrg = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
+                    waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
 
@@ -467,7 +466,7 @@ with tab2:
                     with te2:
                         new_qty = st.number_input("Ubah Jumlah", value=old_qty, min_value=1, step=1, key="e_tx_qty")
                     with te3:
-                        fakultas = ["-", "FEB", "FAHUTAN", "FAPERTA", "FTPA"]
+                        fakultas = ["-", "Yayasan", "Rektorat", "PMB", "FEB", "FAHUTAN", "FAPERTA", "FTPA"]
                         try: idx_p = fakultas.index(row_tx["Pengambil"])
                         except ValueError: idx_p = 0
                         new_pengambil = st.selectbox("Ubah Pengambil", fakultas, index=idx_p, key="e_tx_pengambil")
@@ -541,8 +540,6 @@ with tab2:
         else:
             df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil"]]
             df_display = df_display.rename(columns={"Tanggal_Str": "Tanggal"})
-            # Kode Sakti Penghapus .0 di Riwayat Transaksi (Layar, Excel, & Word)
-            df_display["ID Barang"] = df_display["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
             
             df_export = df_display.copy()
             df_export["Jenis"] = df_export["Jenis"].replace({'<span[^>]*>': '', '</span>': ''}, regex=True)
