@@ -371,7 +371,7 @@ with tab1:
         """, unsafe_allow_html=True)
 
         with st.form("form_transaksi", clear_on_submit=True):
-            input_barcode = st.text_input("Scan Barcode / Input ID", placeholder="Ketik angka ID Barang (1-5)")
+            input_barcode = st.text_input("Input ID", placeholder="Ketik angka ID Barang")
             qty = st.number_input("Jumlah", min_value=1, step=1)
 
             input_pengambil = st.selectbox(
