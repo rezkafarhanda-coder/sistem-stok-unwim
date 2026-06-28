@@ -150,22 +150,22 @@ if "data_ditarik" not in st.session_state:
         # Menarik data permanen dari Sheet
         st.session_state.df_stok = conn.read(worksheet="Stok", ttl=0).dropna(how="all")
         st.session_state.df_transaksi = conn.read(worksheet="Transaksi", ttl=0).dropna(how="all")
-        
+
         # Konversi tipe data agar tidak error saat dihitung dan membersihkan .0
         st.session_state.df_stok["Jumlah Stok"] = pd.to_numeric(st.session_state.df_stok["Jumlah Stok"], errors='coerce').fillna(0).astype(int)
         st.session_state.df_stok["ID Barang"] = st.session_state.df_stok["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
-        
+
         # Membersihkan .0 pada ID Barang di tabel transaksi juga (jika ada)
         if "ID Barang" in st.session_state.df_transaksi.columns:
             st.session_state.df_transaksi["ID Barang"] = st.session_state.df_transaksi["ID Barang"].astype(str).str.replace(r'\.0$', '', regex=True)
-        
+
         # FIX: Pastikan kolom 'Barang Tersedia' ada agar tidak KeyError pada data lama
         if "Barang Tersedia" not in st.session_state.df_transaksi.columns:
             st.session_state.df_transaksi["Barang Tersedia"] = 0
-            
+
         # FIX: Kunci kolom Barang Tersedia menjadi Integer murni agar tidak muncul .0
         st.session_state.df_transaksi["Barang Tersedia"] = pd.to_numeric(st.session_state.df_transaksi["Barang Tersedia"], errors='coerce').fillna(0).astype(int)
-        
+
         st.session_state.data_ditarik = True
     except Exception as e:
         # Jika gagal (aplikasi belum disambungkan ke Sheet), gunakan data sampel
@@ -176,7 +176,7 @@ if "data_ditarik" not in st.session_state:
             "Jumlah Stok":[35,15,5,20,0],
             "Satuan":["Rim", "Pcs", "Pcs", "Pcs", "Pcs"]
         })
-        
+
         # FIX: Tambahkan 'Barang Tersedia' di data kerangka kosong
         st.session_state.df_transaksi = pd.DataFrame(columns=[
             "Waktu", "Jenis", "ID Barang", "Nama Barang", "Jml Transaksi", "Pengambil", "Barang Tersedia"
@@ -208,7 +208,7 @@ tab1, tab2 = st.tabs(["📊 Dashboard Utama", "🕒 Riwayat Transaksi"])
 # SLIDE 1: DASHBOARD UTAMA
 # ==================================================
 with tab1:
-    
+
     # 🌟 Notifikasi Tab 1
     if "notif_tab1" in st.session_state:
         st.success(st.session_state.notif_tab1)
@@ -255,7 +255,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        c1,c2,c3,c4,c5 = st.columns([2.0, 1.5, 0.8, 1.2, 1.5])
+        c1, c2, c3, c4, c5 = st.columns([2.0, 1.5, 0.8, 1.2, 1.5])
         with c1: input_nama = st.text_input("Nama Barang", placeholder="Ketik Disini", key="add_nama")
         with c2: input_kategori = st.text_input("Kategori", placeholder="Contoh: ATK", key="add_kat")
         with c3: input_qty = st.number_input("Jml", min_value=0, step=1, key="add_qty")
@@ -264,16 +264,23 @@ with tab1:
             st.markdown('<div class="marker-teal" style="display:none;"></div>', unsafe_allow_html=True)
             btn_add = st.button("+ Add Item", use_container_width=True, key="btn_add")
 
-if btn_add and input_nama != "":
+        # ==================================================
+        # ✅ PERUBAHAN: Tambah barang baru + catat ke riwayat transaksi
+        # ==================================================
+        if btn_add and input_nama != "":
             id_baru = str(len(st.session_state.df_stok) + 1)
             data_baru = pd.DataFrame({
-                "ID Barang":[id_baru], "Nama Barang":[input_nama],
-                "Kategori":[input_kategori], "Jumlah Stok":[input_qty],
-                "Satuan":[input_satuan], "Status":[""]
+                "ID Barang": [id_baru],
+                "Nama Barang": [input_nama],
+                "Kategori": [input_kategori],
+                "Jumlah Stok": [input_qty],
+                "Satuan": [input_satuan],
+                "Status": [""]
             })
             st.session_state.df_stok = pd.concat([st.session_state.df_stok, data_baru], ignore_index=True)
             simpan_stok()
 
+            # Catat sebagai transaksi "Masuk" jika stok awal > 0
             if input_qty > 0:
                 waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 log_baru = pd.DataFrame({
@@ -295,27 +302,27 @@ if btn_add and input_nama != "":
         # EDIT MASTER BARANG (PILIH NAMA BARANG)
         # ==================================================
         is_editing_master = st.session_state.get("edit_master_nama", "-") != "-"
-        
+
         with st.expander("✏️ Edit / Hapus Master Barang", expanded=is_editing_master):
             pilihan_barang = ["-"] + list(st.session_state.df_stok["Nama Barang"])
             edit_nama_pilih = st.selectbox("Pilih Nama Barang:", pilihan_barang, key="edit_master_nama")
-            
+
             if edit_nama_pilih != "-":
                 idx_edit = st.session_state.df_stok.index[st.session_state.df_stok["Nama Barang"] == edit_nama_pilih].tolist()[0]
                 data_edit = st.session_state.df_stok.iloc[idx_edit]
-                
+
                 e1, e2, e3, e4 = st.columns([2.0, 1.5, 0.8, 1.2])
                 with e1: edit_nama = st.text_input("Nama Baru", data_edit["Nama Barang"], key="e_nama")
                 with e2: edit_kat = st.text_input("Kategori Baru", data_edit["Kategori"], key="e_kat")
                 with e3: edit_qty = st.number_input("Jml Baru", value=int(data_edit["Jumlah Stok"]), key="e_qty")
-                with e4: 
+                with e4:
                     try: idx_satuan = ["Pcs","Rim","Lusin"].index(data_edit["Satuan"])
                     except ValueError: idx_satuan = 0
                     edit_satuan = st.selectbox("Satuan Baru", ["Pcs","Rim","Lusin"], index=idx_satuan, key="e_satuan")
-                
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 ed_b1, ed_b2 = st.columns(2)
-                
+
                 with ed_b1:
                     st.markdown('<div class="marker-hijau" style="display:none;"></div>', unsafe_allow_html=True)
                     if st.button("💾 Simpan Perubahan", use_container_width=True, key="btn_simpan_master"):
@@ -324,22 +331,22 @@ if btn_add and input_nama != "":
                         st.session_state.df_stok.at[idx_edit, "Kategori"] = edit_kat
                         st.session_state.df_stok.at[idx_edit, "Jumlah Stok"] = edit_qty
                         st.session_state.df_stok.at[idx_edit, "Satuan"] = edit_satuan
-                        
-                        simpan_stok() # Simpan ke Google Sheets
-                        
+
+                        simpan_stok()
+
                         st.session_state.notif_tab1 = f"✅ Data '{edit_nama}' berhasil diubah."
                         if "edit_master_nama" in st.session_state:
                             del st.session_state["edit_master_nama"]
                         st.rerun()
-                        
+
                 with ed_b2:
                     st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
                     if st.button("🗑️ Hapus Barang", use_container_width=True, key="btn_hapus_master"):
                         nama_terhapus = data_edit["Nama Barang"]
                         st.session_state.df_stok = st.session_state.df_stok.drop(idx_edit).reset_index(drop=True)
-                        
-                        simpan_stok() # Simpan ke Google Sheets
-                        
+
+                        simpan_stok()
+
                         st.session_state.notif_tab1 = f"🗑️ Barang '{nama_terhapus}' berhasil dihapus dari sistem."
                         if "edit_master_nama" in st.session_state:
                             del st.session_state["edit_master_nama"]
@@ -366,7 +373,7 @@ if btn_add and input_nama != "":
         with st.form("form_transaksi", clear_on_submit=True):
             input_barcode = st.text_input("Scan Barcode / Input ID", placeholder="Ketik angka ID Barang (1-5)")
             qty = st.number_input("Jumlah", min_value=1, step=1)
-            
+
             input_pengambil = st.selectbox(
                 "Pengambil", ["-", "Yayasan", "Rektorat", "PMB", "FEB", "FAHUTAN", "FAPERTA", "FTPA"],
                 help="Pilih fakultas pengambil untuk pencatatan riwayat transaksi."
@@ -378,7 +385,6 @@ if btn_add and input_nama != "":
             st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
             btn_keluar = st.form_submit_button("📤 Barang Keluar", use_container_width=True)
 
-
         # Logika Barang Masuk
         if btn_masuk:
             if input_barcode in st.session_state.df_stok["ID Barang"].values:
@@ -387,7 +393,7 @@ if btn_add and input_nama != "":
                 waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] += qty
-                stok_terbaru = int(stok_sekarang + qty) # Kunci sebagai integer
+                stok_terbaru = int(stok_sekarang + qty)
 
                 log_baru = pd.DataFrame({
                     "Waktu": [waktu_skrg],
@@ -397,10 +403,10 @@ if btn_add and input_nama != "":
                     "Barang Tersedia": [stok_terbaru]
                 })
                 st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
-                
+
                 simpan_stok()
                 simpan_transaksi()
-                
+
                 st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} ditambahkan."
                 st.rerun()
             else:
@@ -415,7 +421,7 @@ if btn_add and input_nama != "":
                     waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     st.session_state.df_stok.loc[st.session_state.df_stok["ID Barang"] == input_barcode, "Jumlah Stok"] -= qty
-                    stok_terbaru = int(stok_sekarang - qty) # Kunci sebagai integer
+                    stok_terbaru = int(stok_sekarang - qty)
 
                     log_baru = pd.DataFrame({
                         "Waktu": [waktu_skrg],
@@ -425,10 +431,10 @@ if btn_add and input_nama != "":
                         "Barang Tersedia": [stok_terbaru]
                     })
                     st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
-                    
+
                     simpan_stok()
                     simpan_transaksi()
-                    
+
                     st.session_state.notif_tab1 = f"✅ Sukses: {qty} {nama_brg} dikeluarkan."
                     st.rerun()
                 else:
@@ -440,7 +446,7 @@ if btn_add and input_nama != "":
 # SLIDE 2: RIWAYAT TRANSAKSI
 # ==================================================
 with tab2:
-    
+
     if "notif_tab2" in st.session_state:
         st.success(st.session_state.notif_tab2)
         del st.session_state.notif_tab2
@@ -463,7 +469,7 @@ with tab2:
         rentang_tanggal = st.date_input("📅 Pilih Rentang Tanggal", value=(datetime.date.today(), datetime.date.today()), key="unik_filter_tanggal")
         if len(rentang_tanggal) == 2: tgl_mulai, tgl_akhir = rentang_tanggal
         else: tgl_mulai = tgl_akhir = rentang_tanggal[0]
-            
+
     with f2:
         list_barang = ["Semua Barang"] + sorted(list(st.session_state.df_stok["Nama Barang"].unique()))
         filter_barang = st.selectbox("📦 Filter Nama Barang", list_barang, key="unik_filter_barang")
@@ -472,28 +478,28 @@ with tab2:
         st.info("Belum ada transaksi yang tercatat di sistem. Silakan lakukan transaksi terlebih dahulu.")
     else:
         is_editing_tx = st.session_state.get("sel_edit_nama_tx", "-") != "-"
-        
+
         with st.expander("✏️ Edit / Hapus Riwayat Transaksi", expanded=is_editing_tx):
             pilihan_barang_tx = ["-"] + list(st.session_state.df_transaksi["Nama Barang"].unique())
             edit_nama_tx = st.selectbox("1. Pilih Nama Barang:", pilihan_barang_tx, key="sel_edit_nama_tx")
-            
+
             if edit_nama_tx != "-":
                 df_tx_filtered = st.session_state.df_transaksi[st.session_state.df_transaksi["Nama Barang"] == edit_nama_tx]
-                
+
                 tx_options = ["-"]
                 for i, r in df_tx_filtered.iterrows():
                     jenis_clean = re.sub(r'<[^>]+>', '', str(r['Jenis']))
                     tx_options.append(f"{i} | {r['Waktu']} | {jenis_clean} ({r['Jml Transaksi']})")
-                    
+
                 sel_tx = st.selectbox("2. Pilih Waktu Transaksi yang akan diedit:", tx_options, key="sel_edit_tx_detail")
-                
+
                 if sel_tx != "-":
                     idx_tx = int(sel_tx.split(" | ")[0])
                     row_tx = st.session_state.df_transaksi.loc[idx_tx]
-                    
+
                     old_jenis_bersih = re.sub(r'<[^>]+>', '', str(row_tx['Jenis']))
                     old_qty = int(re.sub(r'\D', '', str(row_tx['Jml Transaksi'])))
-                    
+
                     te1, te2, te3 = st.columns([1.5, 1.5, 1.5])
                     with te1:
                         idx_j = 0 if old_jenis_bersih == "Masuk" else 1
@@ -505,20 +511,20 @@ with tab2:
                         try: idx_p = fakultas.index(row_tx["Pengambil"])
                         except ValueError: idx_p = 0
                         new_pengambil = st.selectbox("Ubah Pengambil", fakultas, index=idx_p, key="e_tx_pengambil")
-                    
+
                     st.markdown("<br>", unsafe_allow_html=True)
                     ed_tx1, ed_tx2 = st.columns(2)
-                    
+
                     with ed_tx1:
                         st.markdown('<div class="marker-hijau" style="display:none;"></div>', unsafe_allow_html=True)
                         if st.button("💾 Simpan Perubahan Transaksi", use_container_width=True, key="btn_save_tx"):
                             id_brg = row_tx['ID Barang']
-                            
+
                             if old_jenis_bersih == "Masuk":
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= old_qty
                             else:
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += old_qty
-                                
+
                             if new_jenis == "Masuk":
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += new_qty
                                 jenis_html = '<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'
@@ -527,7 +533,7 @@ with tab2:
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= new_qty
                                 jenis_html = '<span style="background-color:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Keluar</span>'
                                 jml_str = f"- {new_qty}"
-                                
+
                             # Ambil stok terbaru setelah diedit (dan dikunci ke integer)
                             stok_terbaru_edit = int(st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'].values[0])
 
@@ -535,10 +541,10 @@ with tab2:
                             st.session_state.df_transaksi.at[idx_tx, 'Jml Transaksi'] = jml_str
                             st.session_state.df_transaksi.at[idx_tx, 'Pengambil'] = new_pengambil
                             st.session_state.df_transaksi.at[idx_tx, 'Barang Tersedia'] = stok_terbaru_edit
-                            
+
                             simpan_stok()
                             simpan_transaksi()
-                            
+
                             st.session_state.notif_tab2 = "✅ Riwayat Transaksi berhasil diubah dan Stok Master telah disesuaikan."
                             if "sel_edit_nama_tx" in st.session_state: del st.session_state["sel_edit_nama_tx"]
                             st.rerun()
@@ -547,17 +553,17 @@ with tab2:
                         st.markdown('<div class="marker-merah" style="display:none;"></div>', unsafe_allow_html=True)
                         if st.button("🗑️ Hapus Transaksi", use_container_width=True, key="btn_del_tx"):
                             id_brg = row_tx['ID Barang']
-                            
+
                             if old_jenis_bersih == "Masuk":
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] -= old_qty
                             else:
                                 st.session_state.df_stok.loc[st.session_state.df_stok['ID Barang'] == id_brg, 'Jumlah Stok'] += old_qty
-                                
+
                             st.session_state.df_transaksi = st.session_state.df_transaksi.drop(idx_tx).reset_index(drop=True)
-                            
+
                             simpan_stok()
                             simpan_transaksi()
-                            
+
                             st.session_state.notif_tab2 = "🗑️ Transaksi dibatalkan. Stok Master telah dikembalikan seperti semula."
                             if "sel_edit_nama_tx" in st.session_state: del st.session_state["sel_edit_nama_tx"]
                             st.rerun()
@@ -567,19 +573,19 @@ with tab2:
         df_filter = st.session_state.df_transaksi.copy()
         df_filter["Tanggal_Str"] = df_filter["Waktu"].apply(lambda x: str(x).split()[0])
         df_filter["Tanggal_Obj"] = pd.to_datetime(df_filter["Tanggal_Str"]).dt.date
-        
+
         df_filter = df_filter[(df_filter["Tanggal_Obj"] >= tgl_mulai) & (df_filter["Tanggal_Obj"] <= tgl_akhir)]
         df_filter = df_filter.sort_values(by="Waktu", ascending=False)
-        
+
         if filter_barang != "Semua Barang":
             df_filter = df_filter[df_filter["Nama Barang"] == filter_barang]
-            
+
         if df_filter.empty:
             st.info(f"Tidak ada aktivitas transaksi dari {tgl_mulai.strftime('%d %B %Y')} s/d {tgl_akhir.strftime('%d %B %Y')}.")
         else:
             df_display = df_filter[["Tanggal_Str", "Nama Barang", "Jenis", "ID Barang", "Jml Transaksi", "Pengambil", "Barang Tersedia"]]
             df_display = df_display.rename(columns={"Tanggal_Str": "Tanggal"})
-            
+
             df_export = df_display.copy()
             df_export["Jenis"] = df_export["Jenis"].replace({'<span[^>]*>': '', '</span>': ''}, regex=True)
 
@@ -601,7 +607,7 @@ with tab2:
                 worksheet.set_column('F:F', 20)
                 worksheet.set_column('G:G', 20)
                 worksheet.autofilter('A1:F1')
-            
+
             with col_d1:
                 st.download_button(
                     label="📥 Download Laporan Excel", data=output_excel.getvalue(),
@@ -613,54 +619,54 @@ with tab2:
             table_hdr = doc.add_table(rows=1, cols=2)
             table_hdr.columns[0].width = Inches(1.0)
             table_hdr.columns[1].width = Inches(5.5)
-            
+
             cell_logo = table_hdr.cell(0, 0)
             cell_text = table_hdr.cell(0, 1)
-            
+
             for cell in [cell_logo, cell_text]:
                 tcPr = cell._element.get_or_add_tcPr()
                 shd = OxmlElement('w:shd')
                 shd.set(qn('w:fill'), '12715B')
                 tcPr.append(shd)
-                
+
             if Path(nama_file_logo).is_file():
                 p_logo = cell_logo.paragraphs[0]
-                p_logo.alignment = 1 
+                p_logo.alignment = 1
                 r_logo = p_logo.add_run()
                 r_logo.add_picture(nama_file_logo, width=Inches(0.7))
-                
+
             p_text = cell_text.paragraphs[0]
             run_title = p_text.add_run("SISTEM STOK BARANG\n")
             run_title.bold = True
             run_title.font.size = Pt(16)
             run_title.font.color.rgb = RGBColor(255, 255, 255)
-            
+
             run_sub = p_text.add_run("REKTORAT UNIVERSITAS WINAYA MUKTI")
             run_sub.font.size = Pt(10)
             run_sub.font.color.rgb = RGBColor(255, 255, 255)
-            
-            doc.add_paragraph() 
+
+            doc.add_paragraph()
             p_info = doc.add_paragraph()
             p_info.add_run("RINGKASAN TRANSAKSI\n").bold = True
             p_info.add_run(f"Periode Laporan : {teks_periode}\n")
             p_info.add_run(f"Total Aktivitas   : {len(df_export)} Transaksi ({jml_masuk} Masuk | {jml_keluar} Keluar)")
-            doc.add_paragraph() 
-            
+            doc.add_paragraph()
+
             table_data = doc.add_table(rows=1, cols=len(df_export.columns))
             table_data.style = 'Table Grid'
             hdr_cells = table_data.rows[0].cells
-            
+
             for i, col_name in enumerate(df_export.columns):
                 hdr_cells[i].text = col_name
                 hdr_cells[i].paragraphs[0].runs[0].bold = True
-            
+
             for _, row in df_export.iterrows():
                 row_cells = table_data.add_row().cells
                 for i, value in enumerate(row): row_cells[i].text = str(value)
-            
+
             output_word = io.BytesIO()
             doc.save(output_word)
-            
+
             with col_d2:
                 st.download_button(
                     label="📄 Download Laporan Word", data=output_word.getvalue(),
