@@ -264,19 +264,33 @@ with tab1:
             st.markdown('<div class="marker-teal" style="display:none;"></div>', unsafe_allow_html=True)
             btn_add = st.button("+ Add Item", use_container_width=True, key="btn_add")
 
-        if btn_add and input_nama != "":
-            id_baru = str(len(st.session_state.df_stok) + 1)
-            data_baru = pd.DataFrame({
-                "ID Barang":[id_baru], "Nama Barang":[input_nama],
-                "Kategori":[input_kategori], "Jumlah Stok":[input_qty],
-                "Satuan":[input_satuan], "Status":[""]
-            })
-            st.session_state.df_stok = pd.concat([st.session_state.df_stok, data_baru], ignore_index=True)
-            
-            simpan_stok() # Simpan ke Google Sheets
-            
-            st.session_state.notif_tab1 = f"✅ Barang '{input_nama}' berhasil ditambahkan ke gudang."
-            st.rerun()
+if btn_add and input_nama != "":
+    id_baru = str(len(st.session_state.df_stok) + 1)
+    data_baru = pd.DataFrame({
+        "ID Barang":[id_baru], "Nama Barang":[input_nama],
+        "Kategori":[input_kategori], "Jumlah Stok":[input_qty],
+        "Satuan":[input_satuan], "Status":[""]
+    })
+    st.session_state.df_stok = pd.concat([st.session_state.df_stok, data_baru], ignore_index=True)
+    simpan_stok()
+
+    # ✅ BARU: Catat penambahan master barang sebagai transaksi "Masuk"
+    if input_qty > 0:
+        waktu_skrg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_baru = pd.DataFrame({
+            "Waktu": [waktu_skrg],
+            "Jenis": ['<span style="background-color:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">Masuk</span>'],
+            "ID Barang": [id_baru],
+            "Nama Barang": [input_nama],
+            "Jml Transaksi": [f"+ {input_qty}"],
+            "Pengambil": ["Stok Awal"],
+            "Barang Tersedia": [input_qty]
+        })
+        st.session_state.df_transaksi = pd.concat([log_baru, st.session_state.df_transaksi], ignore_index=True)
+        simpan_transaksi()
+
+    st.session_state.notif_tab1 = f"✅ Barang '{input_nama}' berhasil ditambahkan ke gudang."
+    st.rerun()
 
         # ==================================================
         # EDIT MASTER BARANG (PILIH NAMA BARANG)
