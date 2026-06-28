@@ -106,7 +106,7 @@ def get_image_as_base64(image_path):
             return f"data:image/png;base64,{base64.b64encode(image_file.read()).decode('utf-8')}"
     except Exception: return ""
 
-nama_file_logo = r"C:\Users\Mochammad Rezka\Pictures\Logo Unwim.png"
+nama_file_logo = "logo.png"
 logo_base64 = get_image_as_base64(nama_file_logo)
 display_style = "display: block;" if logo_base64 else "display: none;"
 
